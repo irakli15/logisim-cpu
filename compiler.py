@@ -18,6 +18,11 @@ class Compiler:
   "M" : 2,
   "num":3
   }
+  cmpValues = {
+    "BEQ" : 2,
+    "BGT" : 1,
+    "BLT" : 4
+  }
 
   alu = 0
   inp1 = 1  
@@ -26,7 +31,7 @@ class Compiler:
   aluInp1 = 4 
   aluInp2 = 5 
   aluOut = 6 
-  unconJump = 7
+  jumpInp = 7
   condJump = 8
 
   def __init__(self, fileName):
@@ -41,15 +46,19 @@ class Compiler:
       self.aluInp1   : 0,  #2
       self.aluInp2   : 0,  #2
       self.aluOut    : 0,  #2
-      self.unconJump : 0,  #1
+      self.jumpInp   : 0,  #1
       self.condJump  : 0   #3
     }
+    self.lineCount = 0
+    self.labels = {}
 
     for line in inFile:
       self.clearData()
-      self.compile(line.upper().split())
+      if self.compile(line.upper().split()) == 1:
+        continue
       # print(line.split())
       self.pack()
+      self.lineCount += 1
 
   def pack(self):
     result = ""
@@ -60,9 +69,8 @@ class Compiler:
     result += self.numToStr(self.data[self.aluInp1]).zfill(2)
     result += self.numToStr(self.data[self.aluInp2]).zfill(2)
     result += self.numToStr(self.data[self.aluOut]).zfill(2)
-    result += self.numToStr(self.data[self.unconJump]).zfill(1)
+    result += self.numToStr(self.data[self.jumpInp]).zfill(2)
     result += self.numToStr(self.data[self.condJump]).zfill(3)
-    result += '0'
     print(result)
     print()
     self.outFile.write(hex(int(result, 2))[2:] + "\n")
@@ -78,18 +86,71 @@ class Compiler:
 
     return bin(num)[2:]
 
-    
+  def handleMemLocation(self, line, i, where):
+    print(line[i]+"****")
+    if line[i] in self.memoryLocation :
+      self.data[where] = self.memoryLocation[line[i]]
+    elif str.isdecimal(line[i]):
+      self.data[where] = self.memoryLocation["num"]
 
   def compile(self, line):
     print(line)
+    if(line[0] == '('):
+      self.labels[line[1]] = self.lineCount
+      return 1
+  
     if(line[0] == "@"):
-      self.data[self.inp1]=int(line[1])
-      self.data[self.a] = 1
-      return
+      if(line[1].isdecimal()):
+        self.data[self.inp1]=int(line[1])
+        self.data[self.a] = 1
+        return
+      else:
+        self.data[self.inp1]=self.labels[line[1]]
+        self.data[self.a] = 1
+        print("addr "+str(self.labels[line[1]]) )
+        return
+
 
     if(line[0] == "JMP"):
-      self.data[self.unconJump] = 1
+      self.handleMemLocation(line, 1, self.jumpInp)
+
+      # self.handleMemLocation(line, 0, self.condJump)
+
+      if(line[1].isdecimal()):
+        self.data[self.inp2]=int(line[1])
+      self.data[self.aluInp1] = 0
+      self.data[self.aluInp2] = 0
+      self.data[self.condJump] = 2
       return
+    
+    if(line[0] in self.cmpValues):
+      # can't do both
+      # assert(line[1].isdecimal() != line[2].isdecimal())
+      self.handleMemLocation(line, 1, self.aluInp1)
+      self.handleMemLocation(line, 2, self.aluInp2)
+
+      if(line[1].isdecimal()):
+        print(line[1]+"----")
+        self.data[self.inp1]=int(line[1])
+
+      if(line[2].isdecimal()):
+        self.data[self.inp1]=int(line[2])
+
+      
+      self.data[self.condJump] = self.cmpValues[line[0]]
+      self.data[self.jumpInp] = 0
+
+      # if(line[3].isdecimal()):
+      #   self.data[self.jumpInp] = 3
+      #   self.data[self.inp2] = int(line[3])
+      return
+
+
+
+
+
+
+
     # print(line[0])
     if line[0] in self.memoryLocation :
       self.data[self.aluOut] = self.memoryLocation[line[0]]
@@ -97,10 +158,9 @@ class Compiler:
     
     assert(line[1] == "=")
 
-    if line[2] in self.memoryLocation :
-      self.data[self.aluInp1] = self.memoryLocation[line[2]]
-    elif str.isalnum(line[2]):
-      self.data[self.aluInp1] = self.memoryLocation["num"]
+    self.handleMemLocation(line, 2, self.aluInp1)
+    if(line[2].isdecimal()):
+      self.data[self.inp1] = int(line[2])
 
     if(len(line) == 3):
       return
@@ -109,10 +169,9 @@ class Compiler:
 
     self.data[self.alu] = self.arithmetic[line[3]]
 
-    if line[4] in self.memoryLocation :
-      self.data[self.aluInp2] = self.memoryLocation[line[4]]
-    elif str.isalnum(line[4]):
-      self.data[self.aluInp2] = self.memoryLocation["num"]
+    self.handleMemLocation(line, 4, self.aluInp2)
+
+    
 
 
     
