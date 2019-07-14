@@ -54,6 +54,8 @@ class Compiler:
 
     for line in inFile:
       self.clearData()
+      if len(line) == 1:
+        continue
       if self.compile(line.upper().split()) == 1:
         continue
       # print(line.split())

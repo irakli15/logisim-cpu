@@ -1,0 +1,9 @@
+@ 0
+M = 10
+( loop )
+D = 1
+@ 0
+M = M - D
+D = M
+@ loop
+BGT D 0

@@ -1,0 +1,9 @@
+@ 0
+M = 1
+( loop )
+D = 1
+@ 0
+M = M + D
+D = M
+@ loop
+BLT D 10
